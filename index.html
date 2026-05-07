@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>THREAT SIGNAL</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--black:#030507;--panel:rgba(8,13,18,0.96);--border:rgba(255,255,255,0.06);--red:#ff2020;--orange:#ff6a00;--yellow:#f5c400;--green:#00e676;--blue:#00b4ff;--text:rgba(255,255,255,0.9);--muted:rgba(255,255,255,0.38);--dim:rgba(255,255,255,0.06);--orb:'Orbitron',monospace;--mono:'Share Tech Mono',monospace;--body:'Barlow',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--black)}
+body{font-family:var(--body);color:var(--text);cursor:crosshair}
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px)}
+#globeCanvas{position:fixed;inset:0;z-index:0}
+.grid-overlay{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(rgba(0,180,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.025) 1px,transparent 1px);background-size:60px 60px}
+.corner{position:fixed;z-index:2;width:36px;height:36px;pointer-events:none}
+.corner.tl{top:14px;left:14px;border-top:1px solid rgba(0,180,255,0.35);border-left:1px solid rgba(0,180,255,0.35)}
+.corner.tr{top:14px;right:14px;border-top:1px solid rgba(0,180,255,0.35);border-right:1px solid rgba(0,180,255,0.35)}
+.corner.bl{bottom:14px;left:14px;border-bottom:1px solid rgba(0,180,255,0.35);border-left:1px solid rgba(0,180,255,0.35)}
+.corner.br{bottom:14px;right:14px;border-bottom:1px solid rgba(0,180,255,0.35);border-right:1px solid rgba(0,180,255,0.35)}
+/* Topbar */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:11px 22px;background:linear-gradient(180deg,rgba(3,5,7,0.98) 0%,transparent 100%);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:11px}
+.brand-logo{width:30px;height:30px;flex-shrink:0}
+.brand-text{font-family:var(--orb);font-size:15px;font-weight:700;letter-spacing:.14em;color:#fff}
+.brand-sub{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.18em;margin-top:1px}
+.topbar-center{display:flex;align-items:center;gap:22px}
+.stat-val{font-family:var(--orb);font-size:13px;font-weight:600;color:var(--blue)}
+.stat-key{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:1px;text-align:center}
+.live-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--red);border:1px solid rgba(255,32,32,0.3);border-radius:2px;padding:4px 10px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+/* Left panel */
+.left-panel{position:fixed;left:18px;top:50%;transform:translateY(-50%);z-index:50;width:210px;display:flex;flex-direction:column;gap:7px}
+.panel-label{font-family:var(--mono);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.panel-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.threat-chip{background:rgba(8,13,18,0.85);border:1px solid var(--border);border-radius:3px;padding:9px 11px;cursor:pointer;transition:all .2s;backdrop-filter:blur(12px);display:flex;align-items:center;gap:9px}
+.threat-chip:hover{border-color:rgba(255,255,255,0.14);background:rgba(15,22,32,0.92)}
+.chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.chip-name{font-family:var(--mono);font-size:9px;letter-spacing:.05em;flex:1}
+.chip-level{font-family:var(--orb);font-size:8px;font-weight:700;letter-spacing:.1em}
+.rc{color:var(--red)}.oc{color:var(--orange)}.yc{color:var(--yellow)}.gc{color:var(--green)}
+/* Bottom center */
+.bottom-center{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;align-items:center;gap:11px;width:480px;max-width:calc(100vw - 40px)}
+.search-row{display:flex;gap:0;width:100%;border:1px solid rgba(0,180,255,0.2);border-radius:3px;overflow:hidden;background:rgba(3,5,7,0.92);backdrop-filter:blur(20px);box-shadow:0 0 30px rgba(0,180,255,0.07);transition:border-color .2s,box-shadow .2s}
+.search-row:focus-within{border-color:rgba(0,180,255,0.45);box-shadow:0 0 30px rgba(0,180,255,0.14)}
+.search-input{flex:1;background:transparent;border:none;outline:none;font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:#fff;padding:12px 15px}
+.search-input::placeholder{color:var(--muted)}
+.scan-btn{background:var(--blue);border:none;cursor:pointer;font-family:var(--orb);font-size:10px;font-weight:700;letter-spacing:.12em;color:#000;padding:0 18px;transition:background .2s;white-space:nowrap}
+.scan-btn:hover{background:#33c4ff}
+/* Voice */
+.voice-row{display:flex;align-items:center;gap:11px}
+.voice-btn{width:48px;height:48px;border-radius:50%;border:1px solid rgba(0,180,255,0.22);background:rgba(3,5,7,0.92);backdrop-filter:blur(20px);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.voice-btn:hover{border-color:rgba(0,180,255,0.55);box-shadow:0 0 16px rgba(0,180,255,0.18)}
+.voice-btn.listening{border-color:var(--red);animation:vpulse 1.2s ease-out infinite}
+.voice-btn.speaking{border-color:var(--green);box-shadow:0 0 16px rgba(0,230,118,0.25)}
+@keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(255,32,32,.5)}70%{box-shadow:0 0 0 12px rgba(255,32,32,0)}100%{box-shadow:0 0 0 0 rgba(255,32,32,0)}}
+.voice-label{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.demo-row{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+.demo-tag{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:2px;padding:3px 9px;cursor:pointer;transition:all .2s}
+.demo-tag:hover{color:var(--text);border-color:rgba(255,255,255,0.14);background:var(--dim)}
+/* Voice status */
+.voice-status{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:150;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--blue);background:rgba(3,5,7,0.92);border:1px solid rgba(0,180,255,0.2);border-radius:2px;padding:5px 14px;backdrop-filter:blur(20px);display:none;align-items:center;gap:7px}
+.vs-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink .8s infinite}
+/* Scanning */
+#scanning{display:none;position:fixed;inset:0;z-index:500;background:rgba(3,5,7,0.93);backdrop-filter:blur(8px);align-items:center;justify-content:center;flex-direction:column}
+.scan-rings{position:relative;width:90px;height:90px;margin-bottom:24px}
+.scan-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,180,255,0.18);inset:0;animation:rspin 2.5s linear infinite}
+.scan-ring:nth-child(2){inset:11px;border-color:rgba(0,180,255,0.32);animation-duration:1.9s;animation-direction:reverse}
+.scan-ring:nth-child(3){inset:22px;border:2px solid var(--blue);border-top-color:transparent;animation-duration:1.1s}
+@keyframes rspin{to{transform:rotate(360deg)}}
+.scan-city-name{font-family:var(--orb);font-size:24px;font-weight:700;letter-spacing:.1em;color:#fff;margin-bottom:5px}
+.scan-subtitle{font-family:var(--mono);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:22px}
+.scan-steps{display:flex;flex-direction:column;gap:6px;width:280px}
+.ss{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);opacity:.3;transition:all .3s}
+.ss.active{opacity:1;color:var(--blue)}
+.ss.done{opacity:.6;color:var(--green)}
+.ss-dot{width:4px;height:4px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* Report panel */
+#reportPanel{position:fixed;right:0;top:0;bottom:0;z-index:200;width:400px;max-width:100vw;background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+#reportPanel.open{transform:translateX(0)}
+.rp-top{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
+.rp-location-name{font-family:var(--orb);font-size:20px;font-weight:700;letter-spacing:.06em;line-height:1;color:#fff}
+.rp-coords{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.09em;margin-top:4px}
+.rp-close{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:8px;letter-spacing:.14em;padding:5px 9px;cursor:pointer;border-radius:2px;transition:all .2s;flex-shrink:0}
+.rp-close:hover{border-color:rgba(255,255,255,0.18);color:var(--text)}
+.rp-scroll{flex:1;overflow-y:auto;padding:14px 18px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
+/* Overall */
+.overall-block{display:flex;align-items:center;gap:12px;padding:12px;border-radius:3px;margin-bottom:12px;border:1px solid currentColor}
+.overall-block.critical{color:var(--red);background:rgba(255,32,32,.06)}
+.overall-block.high{color:var(--orange);background:rgba(255,106,0,.06)}
+.overall-block.moderate{color:var(--yellow);background:rgba(245,196,0,.05)}
+.overall-block.low{color:var(--green);background:rgba(0,230,118,.05)}
+.overall-icon{font-size:26px;flex-shrink:0}
+.overall-level{font-family:var(--orb);font-size:24px;font-weight:900;letter-spacing:.07em;line-height:1}
+.overall-sub{font-family:var(--mono);font-size:8px;letter-spacing:.09em;opacity:.7;margin-top:2px}
+.brief-text{font-family:var(--mono);font-size:9px;line-height:1.8;color:rgba(255,255,255,.5);letter-spacing:.02em;margin-bottom:12px;padding:10px 12px;background:var(--dim);border-left:2px solid rgba(0,180,255,.25);border-radius:0 2px 2px 0}
+.sec-label{font-family:var(--mono);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;margin-top:12px;display:flex;align-items:center;gap:7px}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.meter-row{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.meter-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);width:110px;flex-shrink:0;letter-spacing:.03em}
+.meter-track{flex:1;height:3px;background:var(--dim);border-radius:1px;overflow:hidden}
+.meter-fill{height:100%;border-radius:1px;width:0;transition:width 1.4s cubic-bezier(.4,0,.2,1)}
+.meter-num{font-family:var(--orb);font-size:8px;color:var(--muted);width:26px;text-align:right}
+.tc{border:1px solid var(--border);border-radius:3px;padding:11px;margin-bottom:7px;position:relative;overflow:hidden}
+.tc::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px}
+.tc.critical::before{background:var(--red)}.tc.high::before{background:var(--orange)}.tc.moderate::before{background:var(--yellow)}.tc.low::before{background:var(--green)}
+.tc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.tc-cat{font-family:var(--orb);font-size:10px;font-weight:600;letter-spacing:.07em;color:#fff}
+.tc-sev{font-family:var(--mono);font-size:7px;letter-spacing:.13em;padding:2px 6px;border-radius:1px}
+.tc-sev.critical{color:var(--red);border:1px solid rgba(255,32,32,.3);background:rgba(255,32,32,.07)}
+.tc-sev.high{color:var(--orange);border:1px solid rgba(255,106,0,.3);background:rgba(255,106,0,.07)}
+.tc-sev.moderate{color:var(--yellow);border:1px solid rgba(245,196,0,.3);background:rgba(245,196,0,.05)}
+.tc-sev.low{color:var(--green);border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.05)}
+.tc-sum{font-size:10px;color:rgba(255,255,255,.45);line-height:1.6;margin-bottom:7px}
+.tc-alert{font-family:var(--mono);font-size:8px;letter-spacing:.03em;color:rgba(255,255,255,.38);padding:3px 7px;border-left:1.5px solid var(--border);margin-bottom:2px;line-height:1.5}
+.tc-alert.critical{border-color:var(--red);color:rgba(255,180,180,.7)}
+.tc-alert.high{border-color:var(--orange);color:rgba(255,210,170,.7)}
+.tc-alert.moderate{border-color:var(--yellow);color:rgba(255,240,160,.7)}
+.safety-item{padding:9px 11px;border:1px solid var(--border);border-radius:2px;margin-bottom:5px;background:var(--dim)}
+.safety-title{font-family:var(--mono);font-size:8px;letter-spacing:.13em;text-transform:uppercase;color:var(--green);margin-bottom:3px}
+.safety-body{font-size:10px;color:rgba(255,255,255,.45);line-height:1.6}
+.rp-footer{padding:9px 18px;border-top:1px solid var(--border);flex-shrink:0}
+.rp-ts{font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:.07em;line-height:1.6}
+@media(max-width:768px){.left-panel{display:none}#reportPanel{width:100vw}.bottom-center{width:calc(100vw - 28px)}}
+</style>
+</head>
+<body>
+<canvas id="globeCanvas"></canvas>
+<div class="grid-overlay"></div>
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="brand">
+    <svg class="brand-logo" viewBox="0 0 30 30" fill="none">
+      <circle cx="15" cy="15" r="13" stroke="rgba(0,180,255,.45)" stroke-width="1"/>
+      <circle cx="15" cy="15" r="8" stroke="rgba(0,180,255,.25)" stroke-width="1"/>
+      <circle cx="15" cy="15" r="3.5" fill="rgba(255,32,32,.85)"/>
+      <circle cx="15" cy="15" r="3.5" fill="var(--red)" opacity=".5"><animate attributeName="r" values="3.5;7;3.5" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0;.5" dur="2s" repeatCount="indefinite"/></circle>
+      <line x1="2" y1="15" x2="28" y2="15" stroke="rgba(0,180,255,.18)" stroke-width=".5"/>
+      <line x1="15" y1="2" x2="15" y2="28" stroke="rgba(0,180,255,.18)" stroke-width=".5"/>
+    </svg>
+    <div><div class="brand-text">THREAT SIGNAL</div><div class="brand-sub">Global Intelligence · AMD AI · CrewAI</div></div>
+  </div>
+  <div class="topbar-center">
+    <div><div class="stat-val" id="nc">2,847</div><div class="stat-key">Active Nodes</div></div>
+    <div><div class="stat-val" id="ac" style="color:var(--red)">143</div><div class="stat-key">Live Alerts</div></div>
+    <div><div class="stat-val">194</div><div class="stat-key">Regions</div></div>
+  </div>
+  <div class="live-pill"><div class="live-dot"></div>LIVE INTEL</div>
+</div>
+
+<!-- Left panel -->
+<div class="left-panel">
+  <div class="panel-label">Global Index</div>
+  <div class="threat-chip rc" onclick="loadCity('Gaza, Palestine')"><div class="chip-dot" style="background:var(--red)"></div><div class="chip-name">Gaza, Palestine</div><div class="chip-level rc">CRITICAL</div></div>
+  <div class="threat-chip rc" onclick="loadCity('Kabul, Afghanistan')"><div class="chip-dot" style="background:var(--red)"></div><div class="chip-name">Kabul, Afghanistan</div><div class="chip-level rc">CRITICAL</div></div>
+  <div class="threat-chip oc" onclick="loadCity('Kyiv, Ukraine')"><div class="chip-dot" style="background:var(--orange)"></div><div class="chip-name">Kyiv, Ukraine</div><div class="chip-level oc">HIGH</div></div>
+  <div class="threat-chip yc" onclick="loadCity('Lagos, Nigeria')"><div class="chip-dot" style="background:var(--yellow)"></div><div class="chip-name">Lagos, Nigeria</div><div class="chip-level yc">MODERATE</div></div>
+  <div class="threat-chip yc" onclick="loadCity('Mexico City, Mexico')"><div class="chip-dot" style="background:var(--yellow)"></div><div class="chip-name">Mexico City</div><div class="chip-level yc">MODERATE</div></div>
+  <div class="threat-chip gc" onclick="loadCity('Tokyo, Japan')"><div class="chip-dot" style="background:var(--green)"></div><div class="chip-name">Tokyo, Japan</div><div class="chip-level gc">LOW</div></div>
+</div>
+
+<!-- Voice status -->
+<div class="voice-status" id="voiceStatus"><div class="vs-dot"></div><span id="vsText">Listening…</span></div>
+
+<!-- Bottom center -->
+<div class="bottom-center">
+  <div class="search-row">
+    <input class="search-input" id="cityInput" type="text" placeholder="Enter any city or region…" onkeydown="if(event.key==='Enter')runScan()"/>
+    <button class="scan-btn" onclick="runScan()">SCAN AREA</button>
+  </div>
+  <div class="voice-row">
+    <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()"><span id="voiceIcon">🎙️</span></button>
+    <span class="voice-label" id="voiceLabel">Say a city name</span>
+  </div>
+  <div class="demo-row">
+    <div class="demo-tag" onclick="loadCity('Gaza, Palestine')">Gaza</div>
+    <div class="demo-tag" onclick="loadCity('Kyiv, Ukraine')">Kyiv</div>
+    <div class="demo-tag" onclick="loadCity('Lagos, Nigeria')">Lagos</div>
+    <div class="demo-tag" onclick="loadCity('Kabul, Afghanistan')">Kabul</div>
+    <div class="demo-tag" onclick="loadCity('Mexico City, Mexico')">Mexico City</div>
+    <div class="demo-tag" onclick="loadCity('Tokyo, Japan')">Tokyo</div>
+  </div>
+</div>
+
+<!-- Scanning -->
+<div id="scanning">
+  <div class="scan-rings"><div class="scan-ring"></div><div class="scan-ring"></div><div class="scan-ring"></div></div>
+  <div class="scan-city-name" id="scanCityName">—</div>
+  <div class="scan-subtitle">Scanning threat environment</div>
+  <div class="scan-steps">
+    <div class="ss" id="ss0"><div class="ss-dot"></div>Initializing agent network</div>
+    <div class="ss" id="ss1"><div class="ss-dot"></div>Agent 1 — Weather & natural disasters</div>
+    <div class="ss" id="ss2"><div class="ss-dot"></div>Agent 2 — Conflict & military activity</div>
+    <div class="ss" id="ss3"><div class="ss-dot"></div>Agent 3 — Civil unrest & political risk</div>
+    <div class="ss" id="ss4"><div class="ss-dot"></div>Agent 4 — Disease & health threats</div>
+    <div class="ss" id="ss5"><div class="ss-dot"></div>Synthesizer — Compiling threat brief</div>
+  </div>
+</div>
+
+<!-- Report panel -->
+<div id="reportPanel">
+  <div class="rp-top">
+    <div><div class="rp-location-name" id="rName">—</div><div class="rp-coords" id="rCoords">—</div></div>
+    <button class="rp-close" onclick="closeReport()">✕ CLOSE</button>
+  </div>
+  <div class="rp-scroll" id="rpScroll"></div>
+  <div class="rp-footer"><div class="rp-ts" id="rTs">—</div></div>
+</div>
+
+<script>
+// ── GLOBE ──────────────────────────────────────────────
+const canvas=document.getElementById('globeCanvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth,window.innerHeight);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,0.1,1000);
+camera.position.z=2.8;
+// Globe
+const globe=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),new THREE.MeshPhongMaterial({color:0x040c18,emissive:0x000814,specular:0x002244,shininess:15,transparent:true,opacity:0.95}));
+scene.add(globe);
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.001,32,32),new THREE.MeshBasicMaterial({color:0x003366,wireframe:true,transparent:true,opacity:0.1})));
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.08,64,64),new THREE.MeshPhongMaterial({color:0x001833,transparent:true,opacity:0.16,side:THREE.BackSide})));
+scene.add(new THREE.Mesh(new THREE.TorusGeometry(1.18,0.003,8,200),new THREE.MeshBasicMaterial({color:0x0055aa,transparent:true,opacity:0.35})));
+// Lights
+scene.add(new THREE.AmbientLight(0x111827));
+const sun=new THREE.DirectionalLight(0x334466,1.4);sun.position.set(3,2,3);scene.add(sun);
+const rim=new THREE.DirectionalLight(0x003366,0.6);rim.position.set(-3,-1,-2);scene.add(rim);
+// Stars
+const sv=[];for(let i=0;i<2000;i++)sv.push((Math.random()-.5)*200,(Math.random()-.5)*200,(Math.random()-.5)*200);
+const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));
+scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:0.06,transparent:true,opacity:0.45})));
+// Markers
+const MKS=[
+  {lat:31.35,lon:34.31,c:0xff2020,s:0.022},{lat:34.55,lon:69.21,c:0xff2020,s:0.022},
+  {lat:50.45,lon:30.52,c:0xff6a00,s:0.018},{lat:-1.29,lon:36.82,c:0xff6a00,s:0.015},
+  {lat:15.55,lon:32.53,c:0xff6a00,s:0.015},{lat:6.52,lon:3.38,c:0xf5c400,s:0.014},
+  {lat:19.43,lon:-99.13,c:0xf5c400,s:0.014},{lat:23.81,lon:90.41,c:0xf5c400,s:0.013},
+  {lat:35.68,lon:139.65,c:0x00e676,s:0.012},{lat:51.51,lon:-0.12,c:0x00e676,s:0.012},
+  {lat:48.86,lon:2.35,c:0x00e676,s:0.012},{lat:-33.87,lon:151.21,c:0x00e676,s:0.011},
+  {lat:40.71,lon:-74.01,c:0x00e676,s:0.012},{lat:1.35,lon:103.82,c:0x00e676,s:0.011},
+];
+function ll2v(lat,lon,r){const phi=(90-lat)*(Math.PI/180),theta=(lon+180)*(Math.PI/180);return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));}
+const mGroup=new THREE.Group();scene.add(mGroup);
+MKS.forEach(m=>{
+  const pos=ll2v(m.lat,m.lon,1.012);
+  const dot=new THREE.Mesh(new THREE.SphereGeometry(m.s,8,8),new THREE.MeshBasicMaterial({color:m.c}));
+  dot.position.copy(pos);mGroup.add(dot);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(m.s*2.4,0.002,6,32),new THREE.MeshBasicMaterial({color:m.c,transparent:true,opacity:0.5}));
+  ring.position.copy(pos);ring.lookAt(new THREE.Vector3(0,0,0));ring.userData.pp=Math.random()*Math.PI*2;
+  mGroup.add(ring);
+});
+let isDrag=false,px=0,rotY=0,t=0;
+canvas.addEventListener('mousedown',e=>{isDrag=true;px=e.clientX});
+window.addEventListener('mouseup',()=>{isDrag=false});
+window.addEventListener('mousemove',e=>{if(!isDrag)return;rotY+=(e.clientX-px)*0.003;px=e.clientX;globe.rotation.y=rotY;mGroup.rotation.y=rotY;});
+function animate(){
+  requestAnimationFrame(animate);t+=0.012;
+  if(!isDrag){rotY+=0.0014;globe.rotation.y=rotY;mGroup.rotation.y=rotY;}
+  mGroup.children.forEach(c=>{if(c.userData.pp!==undefined){const p=(t+c.userData.pp)%(Math.PI*2);c.scale.setScalar(1+Math.sin(p)*0.38);c.material.opacity=0.5*(1-Math.sin(p)*0.48);}});
+  renderer.render(scene,camera);
+}
+animate();
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+
+// ── DATA ──────────────────────────────────────────────
+const TD={
+  "Gaza, Palestine":{location:"Gaza, Palestine",lat:31.35,lon:34.31,overall:"CRITICAL",cls:"critical",sub:"Extreme danger — do not travel",
+    brief:"INTEL SUMMARY // Active armed conflict with ongoing military operations producing extreme civilian threat across all categories. All infrastructure severely compromised. Foreign nationals must evacuate via available humanitarian corridors immediately.",
+    meter:[{l:"Armed Conflict",v:98,c:"#ff2020"},{l:"Civilian Risk",v:96,c:"#ff2020"},{l:"Infrastructure",v:92,c:"#ff6a00"},{l:"Health Risk",v:74,c:"#ff6a00"},{l:"Natural Hazards",v:18,c:"#00e676"}],
+    threats:[{cat:"ARMED CONFLICT",icon:"⚔️",sev:"critical",sum:"Active military operations with heavy urban combat and aerial bombardment. No established safe zones.",alerts:["critical:Active aerial operations — extreme ordinance risk","critical:Ground combat in densely populated urban areas","critical:Hospitals and civilian infrastructure directly threatened"]},{cat:"CIVIL CRISIS",icon:"🔥",sev:"critical",sum:"Mass displacement. 1.9M+ internally displaced. Humanitarian systems at collapse.",alerts:["critical:Mass civilian displacement — evacuation routes frequently blocked","critical:Aid distribution points overwhelmed","high:Rule of law suspended across multiple sectors"]},{cat:"HEALTH & DISEASE",icon:"☣️",sev:"high",sum:"Healthcare at functional collapse. Disease outbreak risk elevated from contamination and overcrowding.",alerts:["high:Waterborne disease outbreaks confirmed","high:Medical facilities beyond critical capacity","high:Severe shortage of medicines and surgical supplies"]},{cat:"WEATHER",icon:"🌧️",sev:"moderate",sum:"Winter rains creating additional risk for displaced populations.",alerts:["moderate:Flooding risk in displacement camps","moderate:Cold temperatures — hypothermia risk for exposed civilians"]}],
+    safety:[{t:"Evacuate immediately",b:"Contact embassy for extraction. Humanitarian corridors intermittently available. Do not delay."},{t:"Emergency contacts",b:"UN OCHA +1-212-963-1234 · ICRC +41-22-734-6001 · Embassy emergency lines."},{t:"Zero movement",b:"Do not move without confirmed safe passage. Nighttime movement is lethal risk."}]},
+  "Kabul, Afghanistan":{location:"Kabul, Afghanistan",lat:34.55,lon:69.21,overall:"CRITICAL",cls:"critical",sub:"Extreme danger — do not travel",
+    brief:"INTEL SUMMARY // Taliban governance enforced through armed coercion. ISIS-K conducts frequent bombings. No Western embassies operational in-country. Kidnapping risk extreme for foreign nationals. Healthcare near collapse.",
+    meter:[{l:"Terrorism",v:92,c:"#ff2020"},{l:"Kidnapping Risk",v:88,c:"#ff2020"},{l:"Civil Restrictions",v:86,c:"#ff2020"},{l:"Health Risk",v:68,c:"#ff6a00"},{l:"Natural Hazards",v:32,c:"#f5c400"}],
+    threats:[{cat:"TERRORISM",icon:"💣",sev:"critical",sum:"ISIS-K carries out frequent bombings and suicide attacks. Monthly frequency in Kabul.",alerts:["critical:Suicide bombing attacks — monthly frequency","critical:IED threat on major roads and public gathering points","critical:Targeted assassinations of perceived foreign collaborators"]},{cat:"ARMED CONFLICT",icon:"⚔️",sev:"critical",sum:"Taliban governance maintained through force. Arbitrary detention risk extreme for foreign nationals.",alerts:["critical:Foreign nationals at extreme risk of arbitrary detention","critical:All movement requires Taliban authorization","high:Resistance conflict active in northern regions"]},{cat:"HEALTH",icon:"☣️",sev:"high",sum:"Healthcare near collapse. Acute malnutrition crisis. Polio and cholera outbreaks ongoing.",alerts:["critical:Acute malnutrition — 6M+ in emergency phase","high:Polio re-emergence","high:Cholera outbreak in multiple provinces"]},{cat:"CIVIL RIGHTS",icon:"🔒",sev:"high",sum:"Severe restrictions on all civilian movement and activity under Taliban rule.",alerts:["critical:Women banned from employment, education, and public spaces","high:Public assembly prohibited","high:Communications monitored — foreign contacts flagged"]}],
+    safety:[{t:"Do not travel",b:"All governments advise against any travel. Leave immediately if present."},{t:"Emergency extraction",b:"No Western embassies in-country. Contact government emergency line."},{t:"Last resort",b:"If unable to evacuate: minimise movement, avoid authorities, shelter in place."}]},
+  "Kyiv, Ukraine":{location:"Kyiv, Ukraine",lat:50.45,lon:30.52,overall:"HIGH",cls:"high",sub:"Significant danger — extreme caution required",
+    brief:"INTEL SUMMARY // Long-range missile and drone strikes targeting Kyiv occur regularly. Air defense active. Ground-level security stabilised. Energy infrastructure under sustained attack entering winter.",
+    meter:[{l:"Missile/Drone Risk",v:78,c:"#ff6a00"},{l:"Armed Conflict",v:72,c:"#ff6a00"},{l:"Infrastructure",v:58,c:"#f5c400"},{l:"Civil Unrest",v:20,c:"#00e676"},{l:"Health Risk",v:14,c:"#00e676"}],
+    threats:[{cat:"ARMED CONFLICT",icon:"⚔️",sev:"high",sum:"Long-range missile and drone attacks targeting Kyiv and infrastructure. Frontlines 300km+ from capital.",alerts:["high:Ballistic missile and drone attacks occurring weekly","high:Air raid sirens — immediate shelter compliance required","moderate:Railway infrastructure occasionally disrupted"]},{cat:"INFRASTRUCTURE",icon:"⚡",sev:"high",sum:"Energy infrastructure under sustained attack. Power and heating outages expected through winter.",alerts:["high:Electricity outages — up to 8hrs daily during winter peak","high:Heating system failures during sub-zero temperatures","moderate:Water supply intermittently disrupted"]},{cat:"WEATHER",icon:"❄️",sev:"moderate",sum:"Winter conditions with temperatures down to -15°C amplified by infrastructure attacks.",alerts:["high:Sub-zero temperatures combined with heating outages","moderate:Snow and ice reducing mobility"]},{cat:"CIVIL UNREST",icon:"📢",sev:"low",sum:"Civil order maintained. Martial law in effect. Curfew 00:00–05:00.",alerts:["moderate:Curfew strictly enforced — violations result in detention","low:Mandatory checks at road checkpoints"]}],
+    safety:[{t:"Air raid protocol",b:"Move immediately to lowest floor or designated shelter on sirens. Stay until all-clear."},{t:"Curfew compliance",b:"Indoors 00:00–05:00. Carry ID at all times. Cooperate with military checkpoints."},{t:"Emergency contacts",b:"Ukraine emergency: 101 fire · 102 police · 103 medical. Register with your embassy."}]},
+  "Lagos, Nigeria":{location:"Lagos, Nigeria",lat:6.52,lon:3.38,overall:"MODERATE",cls:"moderate",sub:"Elevated risk — heightened caution required",
+    brief:"INTEL SUMMARY // Lagos presents a moderate multifaceted threat environment. Armed robbery, kidnapping, and flash flooding are primary risks. Health threats from malaria and cholera require standard prophylaxis. Navigable with appropriate precautions.",
+    meter:[{l:"Crime & Security",v:62,c:"#f5c400"},{l:"Health & Disease",v:55,c:"#f5c400"},{l:"Natural Hazards",v:50,c:"#f5c400"},{l:"Civil Unrest",v:38,c:"#f5c400"},{l:"Armed Conflict",v:10,c:"#00e676"}],
+    threats:[{cat:"CRIME & SECURITY",icon:"🔒",sev:"high",sum:"Armed robbery, vehicle hijacking, and kidnapping for ransom especially after dark.",alerts:["high:Armed robbery on Lagos-Ibadan Expressway","high:Kidnapping risk in Lekki and Ajah suburbs after dark","moderate:Pickpocketing at Oshodi and Lagos Island markets"]},{cat:"CIVIL UNREST",icon:"📢",sev:"moderate",sum:"Periodic protests. Political tensions elevated during election cycles.",alerts:["moderate:Labour strike action disrupting transport","moderate:Avoid large public gatherings"]},{cat:"HEALTH",icon:"☣️",sev:"moderate",sum:"Malaria endemic. Cholera outbreaks follow flooding. Lassa fever seasonal risk.",alerts:["high:Malaria — antimalarial prophylaxis strongly recommended","moderate:Cholera risk elevated post-flooding","moderate:Lassa fever — avoid rodent contact"]},{cat:"WEATHER & FLOODS",icon:"🌧️",sev:"moderate",sum:"Monsoon season June–October brings intense flash flooding in multiple districts.",alerts:["high:Flash flooding in Victoria Island, Lekki, and mainland low areas","moderate:Road infrastructure severely disrupted during heavy rain"]}],
+    safety:[{t:"Avoid night travel",b:"Restrict movement after dark. Use app-based transport only. No street taxis."},{t:"Health precautions",b:"Take antimalarial prophylaxis. Drink bottled water only. Ensure yellow fever vaccination current."},{t:"Emergency contacts",b:"Nigeria Police: 112 · Lagos Emergency: 767 · Travel insurance security line."}]},
+  "Mexico City, Mexico":{location:"Mexico City, Mexico",lat:19.43,lon:-99.13,overall:"MODERATE",cls:"moderate",sub:"Elevated risk — area-specific caution required",
+    brief:"INTEL SUMMARY // Mexico City presents moderate geographically variable threat. Cartel-related violence, petty crime, and seismic risk are primary concerns. Express kidnapping in unofficial taxis is a known pattern.",
+    meter:[{l:"Crime & Security",v:58,c:"#f5c400"},{l:"Natural Hazards",v:60,c:"#f5c400"},{l:"Organised Crime",v:52,c:"#f5c400"},{l:"Health/Environment",v:45,c:"#f5c400"},{l:"Armed Conflict",v:8,c:"#00e676"}],
+    threats:[{cat:"CRIME & SECURITY",icon:"🔒",sev:"moderate",sum:"Street crime, ATM fraud, and express kidnapping via unofficial taxis. Variable risk by borough.",alerts:["high:Express kidnapping via unofficial taxis — use apps only","moderate:Street robbery in Centro Histórico and Tepito","moderate:Avoid Iztapalapa and Tepito at night"]},{cat:"NATURAL HAZARDS",icon:"🌋",sev:"high",sum:"Extreme seismic risk on former lake bed. Popocatépetl volcanic activity elevated.",alerts:["high:Seismic risk — major earthquakes historically recurrent","high:Popocatépetl at elevated activity — ash fall risk","moderate:Building subsidence affecting historic centre"]},{cat:"HEALTH",icon:"☣️",sev:"moderate",sum:"Air quality frequently unhealthy. Water unsafe. Altitude of 2,240m affects new arrivals.",alerts:["moderate:Air quality index regularly exceeds safe thresholds","moderate:Altitude sickness risk — allow acclimatisation","low:Tap water unsafe — bottled water required"]},{cat:"CIVIL UNREST",icon:"📢",sev:"low",sum:"Periodic demonstrations generally peaceful. Political environment stable.",alerts:["low:Large demonstrations near Zócalo on protest dates"]}],
+    safety:[{t:"Transport safety",b:"Use Uber, Didi, or Cabify only. Never hail street taxis."},{t:"Earthquake prep",b:"Identify evacuation routes. Alert system sounds 60–120s before shaking. Move to open ground."},{t:"Emergency contacts",b:"Mexico City: 911 · Tourist police: 55 5242-5100 · Embassy emergency lines."}]},
+  "Tokyo, Japan":{location:"Tokyo, Japan",lat:35.68,lon:139.65,overall:"LOW",cls:"low",sub:"Minimal risk — standard precautions sufficient",
+    brief:"INTEL SUMMARY // Tokyo presents one of the lowest urban threat environments globally. Violent crime is extremely rare. Primary risks are natural hazards — seismic activity and typhoon season. DPRK missile testing managed by J-Alert system.",
+    meter:[{l:"Natural Hazards",v:55,c:"#f5c400"},{l:"Geopolitical",v:35,c:"#f5c400"},{l:"Crime & Security",v:6,c:"#00e676"},{l:"Civil Unrest",v:4,c:"#00e676"},{l:"Health Risk",v:8,c:"#00e676"}],
+    threats:[{cat:"NATURAL HAZARDS",icon:"🌪️",sev:"moderate",sum:"High seismic activity zone. Typhoon season July–October. Volcanic monitoring elevated.",alerts:["moderate:Seismic risk — major earthquake risk persistent","moderate:Typhoon season — storm preparations required July–October","low:Mt Fuji monitoring elevated — no immediate risk"]},{cat:"GEOPOLITICAL",icon:"🛡️",sev:"moderate",sum:"DPRK ballistic missile tests periodically cross Japanese airspace. J-Alert provides advance warning.",alerts:["moderate:DPRK missile testing — J-Alert activated for airspace intrusions","low:Follow J-Alert instructions immediately on activation"]},{cat:"CRIME",icon:"🔒",sev:"low",sum:"Violent crime extremely rare. Consistently among the safest major cities globally.",alerts:["low:Petty theft in crowded areas — standard precautions sufficient","low:Tourist scams in entertainment districts"]},{cat:"HEALTH",icon:"☣️",sev:"low",sum:"World-class healthcare. No significant outbreaks. Standard travel precautions apply.",alerts:["low:Travel health insurance recommended"]}],
+    safety:[{t:"Earthquake prep",b:"Register for J-Alert. Drop, cover, hold on during shaking. Tsunami routes are well-marked."},{t:"Emergency contacts",b:"Japan: 110 police · 119 fire/ambulance. Many hospitals have English-speaking staff."},{t:"Typhoon season",b:"Monitor JMA forecasts June–October. Follow evacuation orders promptly."}]}
+};
+
+// ── SCAN FLOW ─────────────────────────────────────────
+async function runScan(){
+  const input=document.getElementById('cityInput').value.trim();
+  if(!input)return;
+  const key=Object.keys(TD).find(k=>k.toLowerCase().includes(input.toLowerCase()));
+  if(key){startScan(key);return;}
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=1`);
+    const data=await res.json();
+    if(!data.length){alert('Location not found. Try a demo city.');return;}
+    const name=data[0].display_name.split(',').slice(0,2).join(',').trim();
+    startScan(null,name,parseFloat(data[0].lat),parseFloat(data[0].lon));
+  }catch(e){alert('Search failed. Try a demo city.');}
+}
+function loadCity(key){document.getElementById('cityInput').value=key;startScan(key);}
+function startScan(key,fb,flat,flon){
+  const d=key?TD[key]:null;
+  const name=d?d.location:(fb||'—');
+  document.getElementById('scanCityName').textContent=name.toUpperCase();
+  const sc=document.getElementById('scanning');
+  sc.style.display='flex';
+  for(let i=0;i<6;i++)document.getElementById('ss'+i).className='ss';
+  [300,900,1700,2500,3300,4100].forEach((delay,i)=>setTimeout(()=>{
+    if(i>0)document.getElementById('ss'+(i-1)).className='ss done';
+    document.getElementById('ss'+i).className='ss active';
+  },delay));
+  setTimeout(()=>{
+    document.getElementById('ss5').className='ss done';
+    sc.style.display='none';
+    renderReport(d||genericReport(name,flat||0,flon||0));
+    if(d){rotY=-(d.lon*Math.PI/180);globe.rotation.y=rotY;mGroup.rotation.y=rotY;}
+  },5400);
+}
+function genericReport(name,lat,lon){
+  return{location:name,lat,lon,overall:"MODERATE",cls:"moderate",sub:"Elevated risk — heightened caution recommended",
+    brief:`INTEL SUMMARY // ${name} — assessment based on regional indicators. Standard travel precautions recommended. Monitor official government advisories. Threat levels subject to rapid change.`,
+    meter:[{l:"Crime & Security",v:42,c:"#f5c400"},{l:"Civil Unrest",v:30,c:"#f5c400"},{l:"Health Risk",v:35,c:"#f5c400"},{l:"Natural Hazards",v:25,c:"#00e676"},{l:"Armed Conflict",v:12,c:"#00e676"}],
+    threats:[{cat:"CRIME & SECURITY",icon:"🔒",sev:"moderate",sum:"Standard urban security precautions recommended.",alerts:["moderate:Remain aware in crowded public areas","low:Use official transport only"]},{cat:"CIVIL UNREST",icon:"📢",sev:"low",sum:"Political situation broadly stable.",alerts:["low:Monitor local news for demonstrations"]},{cat:"HEALTH",icon:"☣️",sev:"moderate",sum:"Standard travel health precautions apply.",alerts:["moderate:Check vaccination requirements before travel","low:Travel health insurance recommended"]},{cat:"WEATHER",icon:"🌪️",sev:"low",sum:"Seasonal weather risks standard for region.",alerts:["low:Monitor local meteorological advisories"]}],
+    safety:[{t:"Stay informed",b:"Monitor official government travel advisories. Register with embassy upon arrival."},{t:"Health precautions",b:"Ensure vaccinations current. Carry basic medical kit."},{t:"Emergency contacts",b:"Save local emergency numbers. Carry embassy contact at all times."}]};}
+
+// ── RENDER ────────────────────────────────────────────
+function renderReport(d){
+  document.getElementById('rName').textContent=d.location.toUpperCase();
+  document.getElementById('rCoords').textContent=`${d.lat}°, ${d.lon}° · ${new Date().toUTCString()}`;
+  document.getElementById('rTs').textContent=`UNCLASSIFIED // FOR OFFICIAL USE · Generated: ${new Date().toUTCString()} · Llama 3 · AMD Instinct MI300X`;
+  const icons={critical:'⛔',high:'⚠️',moderate:'🟡',low:'✅'};
+  let h=`<div class="overall-block ${d.cls}">
+    <div class="overall-icon">${icons[d.cls]||'⚠️'}</div>
+    <div><div class="overall-level">${d.overall}</div><div class="overall-sub">${d.sub}</div></div>
+  </div>
+  <div class="brief-text">${d.brief}</div>
+  <div class="sec-label">Threat Meter</div>`;
+  d.meter.forEach((m,i)=>{h+=`<div class="meter-row"><div class="meter-lbl">${m.l}</div><div class="meter-track"><div class="meter-fill" id="mf${i}" style="background:${m.c}"></div></div><div class="meter-num">${m.v}%</div></div>`;});
+  h+=`<div class="sec-label">Threat Categories</div>`;
+  d.threats.forEach((t,i)=>{
+    h+=`<div class="tc ${t.sev}" style="animation-delay:${i*.07}s">
+      <div class="tc-header"><div class="tc-cat">${t.icon} ${t.cat}</div><div class="tc-sev ${t.sev}">${t.sev.toUpperCase()}</div></div>
+      <div class="tc-sum">${t.sum}</div>
+      <div>${t.alerts.map(a=>{const[sev,txt]=a.includes(':')?a.split(':'):['moderate',a];return`<div class="tc-alert ${sev}">${txt.trim()}</div>`;}).join('')}</div>
+    </div>`;
+  });
+  h+=`<div class="sec-label">Safety Recommendations</div>`;
+  d.safety.forEach(s=>{h+=`<div class="safety-item"><div class="safety-title">${s.t}</div><div class="safety-body">${s.b}</div></div>`;});
+  document.getElementById('rpScroll').innerHTML=h;
+  document.getElementById('reportPanel').classList.add('open');
+  setTimeout(()=>d.meter.forEach((_,i)=>{const el=document.getElementById('mf'+i);if(el)el.style.width=d.meter[i].v+'%';}),100);
+  speakReport(d);
+}
+function closeReport(){document.getElementById('reportPanel').classList.remove('open');window.speechSynthesis&&window.speechSynthesis.cancel();}
+
+// ── VOICE ─────────────────────────────────────────────
+let recognition=null,isListening=false;
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){alert('Voice recognition requires Chrome browser.');return;}
+  isListening?stopListening():startListening();
+}
+function startListening(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();recognition.lang='en-US';recognition.interimResults=false;recognition.maxAlternatives=1;
+  recognition.onstart=()=>{isListening=true;document.getElementById('voiceBtn').className='voice-btn listening';document.getElementById('voiceIcon').textContent='🔴';document.getElementById('voiceLabel').textContent='Listening…';showVS('Listening — speak a city name…','var(--red)');};
+  recognition.onresult=e=>{const spoken=e.results[0][0].transcript.trim();document.getElementById('voiceLabel').textContent=`Heard: "${spoken}"`;document.getElementById('cityInput').value=spoken;stopListening();setTimeout(()=>runScan(),400);};
+  recognition.onerror=()=>{stopListening();showVS('Could not hear clearly. Try again.','var(--muted)');setTimeout(hideVS,2000);};
+  recognition.onend=()=>stopListening();
+  recognition.start();
+}
+function stopListening(){isListening=false;if(recognition)recognition.stop();document.getElementById('voiceBtn').className='voice-btn';document.getElementById('voiceIcon').textContent='🎙️';document.getElementById('voiceLabel').textContent='Say a city name';hideVS();}
+function speakReport(d){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const text=`Threat Signal report for ${d.location}. Overall threat level: ${d.overall}. ${d.sub}. ${d.brief.replace('INTEL SUMMARY //','').trim()} Top threats: ${d.threats.slice(0,2).map(t=>`${t.cat}, severity ${t.sev}`).join('. ')}.`;
+  const u=new SpeechSynthesisUtterance(text);u.rate=0.9;u.pitch=0.82;u.volume=1;
+  u.onstart=()=>{document.getElementById('voiceBtn').className='voice-btn speaking';document.getElementById('voiceIcon').textContent='🔊';document.getElementById('voiceLabel').textContent='Reading report…';showVS('Reading threat report…','var(--green)');};
+  u.onend=()=>{document.getElementById('voiceBtn').className='voice-btn';document.getElementById('voiceIcon').textContent='🎙️';document.getElementById('voiceLabel').textContent='Say a city name';hideVS();};
+  window.speechSynthesis.speak(u);
+}
+function showVS(msg,color){const el=document.getElementById('voiceStatus');document.getElementById('vsText').textContent=msg;el.style.display='flex';el.style.color=color;el.querySelector('.vs-dot').style.background=color;}
+function hideVS(){document.getElementById('voiceStatus').style.display='none';}
+
+// Live counters
+setInterval(()=>{document.getElementById('nc').textContent=(2800+Math.floor(Math.random()*120)).toLocaleString();document.getElementById('ac').textContent=130+Math.floor(Math.random()*30);},3500);
+</script>
+</body>
+</html>
